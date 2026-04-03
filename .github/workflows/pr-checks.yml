@@ -1,0 +1,181 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --coverage --watchAll=false
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  pr-size:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff stats
+        id: diff-stats
+        run: |
+          # Obter o branch base da PR
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+
+          # Buscar as mudanças
+          git fetch origin $BASE_REF
+          ADDED_LINES=$(git diff --shortstat origin/$BASE_REF...HEAD | grep -oP '\d+(?= insertion)')
+          DELETED_LINES=$(git diff --shortstat origin/$BASE_REF...HEAD | grep -oP '\d+(?= deletion)')
+
+          ADDED_LINES=${ADDED_LINES:-0}
+          DELETED_LINES=${DELETED_LINES:-0}
+          TOTAL_CHANGES=$((ADDED_LINES + DELETED_LINES))
+
+          echo "added=$ADDED_LINES" >> $GITHUB_OUTPUT
+          echo "deleted=$DELETED_LINES" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+
+      - name: Comment PR size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const added = ${{ steps.diff-stats.outputs.added }};
+            const deleted = ${{ steps.diff-stats.outputs.deleted }};
+            const total = ${{ steps.diff-stats.outputs.total }};
+
+            let message = `## 📊 PR Statistics\n\n`;
+            message += `- **+${added} lines added**\n`;
+            message += `- **-${deleted} lines deleted**\n`;
+            message += `- **${total} total changes**\n\n`;
+
+            if (total > 500) {
+              message += `⚠️ **Large PR!** Consider splitting into smaller PRs for easier review.\n`;
+            } else if (total > 200) {
+              message += `ℹ️ **Medium PR.** Good size for review.\n`;
+            } else {
+              message += `✅ **Small PR.** Perfect size for quick review!\n`;
+            }
+
+            // Postar como comentário na PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            // Verificar se já existe um comentário nosso
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('📊 PR Statistics')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: message
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            }

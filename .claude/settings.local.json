@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/Users$USER/AppData/Local/Programs/**)",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?id=4429&e=2026\")",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo:*)"
+    ]
+  }
+}

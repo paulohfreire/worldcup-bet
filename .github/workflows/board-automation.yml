@@ -1,0 +1,142 @@
+name: Board Automation
+
+on:
+  pull_request:
+    types: [opened, closed, reopened, merged]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+jobs:
+  move-on-pr-open:
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    name: Move to Review on PR Open
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get linked issues
+        id: get-issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Buscar issues mencionadas no corpo da PR
+            const issueNumbers = (context.payload.pull_request.body || '')
+              .match(/#(\d+)/g)
+              ?.map(match => parseInt(match.replace('#', ''))) || [];
+
+            console.log(`Issues encontradas: ${issueNumbers.join(', ')}`);
+
+            // Retornar os números das issues
+            return issueNumbers;
+
+      - name: Update issues status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = ${{ steps.get-issues.outputs.result }};
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Para cada issue, adicionar label "in-review"
+            for (const issueNumber of issues) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: ['in-review']
+                });
+                console.log(`Issue #${issueNumber} marcada como in-review`);
+              } catch (error) {
+                console.error(`Erro ao atualizar issue #${issueNumber}:`, error.message);
+              }
+            }
+
+  move-on-pr-merge:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged
+    name: Move to Done on PR Merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get linked issues
+        id: get-issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Buscar issues mencionadas no corpo da PR
+            const issueNumbers = (context.payload.pull_request.body || '')
+              .match(/#(\d+)/g)
+              ?.map(match => parseInt(match.replace('#', ''))) || [];
+
+            return issueNumbers;
+
+      - name: Close issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = ${{ steps.get-issues.outputs.result }};
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const actor = context.actor;
+
+            // Para cada issue, fechar e adicionar comment
+            for (const issueNumber of issues) {
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body: `✅ Issue fechada automaticamente após merge da PR #${context.payload.pull_request.number} por @${actor}.`
+                });
+
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: 'closed',
+                  labels: ['done']
+                });
+                console.log(`Issue #${issueNumber} fechada`);
+              } catch (error) {
+                console.error(`Erro ao fechar issue #${issueNumber}:`, error.message);
+              }
+            }
+
+  notify-on-review:
+    if: github.event_name == 'pull_request_review'
+    name: Notify on Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check review state
+        id: check-review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const review = context.payload.review;
+            const state = review.state;
+            const prNumber = context.payload.pull_request.number;
+
+            let message = '';
+
+            if (state === 'APPROVED') {
+              message = `✅ PR #${prNumber} foi aprovada por @${review.user.login}`;
+            } else if (state === 'CHANGES_REQUESTED') {
+              message = `🔄 Mudanças solicitadas na PR #${prNumber} por @${review.user.login}`;
+            } else if (state === 'COMMENTED') {
+              message = `💬 Novo comentário na PR #${prNumber} por @${review.user.login}`;
+            }
+
+            return { state, message, prNumber, reviewer: review.user.login };
+
+      - name: Post comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = ${{ steps.check-review.outputs.result }};
+
+            if (result.message) {
+              console.log(result.message);
+              // Você pode adicionar lógica adicional aqui
+              // como postar em um canal do Slack, etc.
+            }

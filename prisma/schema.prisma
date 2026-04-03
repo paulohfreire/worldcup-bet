@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  password    String
+  role        String       @default("user")
+  createdAt   DateTime     @default(now())
+
+  predictions Prediction[]
+}
+
+model Team {
+  id        String  @id @default(uuid())
+  name      String
+  code      String
+  flagUrl   String
+  group     String?
+
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+}
+
+model Match {
+  id              String   @id @default(uuid())
+  stage           String
+  group           String?
+  order           Int
+  homeTeamId      String
+  awayTeamId      String
+  date            DateTime
+
+  homeScore       Int?
+  awayScore       Int?
+
+  nextMatchId     String?
+  nextMatchSlot   String?  // "home" or "away"
+
+  predictions     Prediction[]
+
+  homeTeam        Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam        Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@index([nextMatchId])
+}
+
+model Prediction {
+  id        String @id @default(uuid())
+  userId    String
+  matchId   String
+
+  homeScore Int
+  awayScore Int
+
+  user      User   @relation(fields: [userId], references: [id])
+  match     Match  @relation(fields: [matchId], references: [id])
+
+  @@unique([userId, matchId])
+  @@index([userId])
+  @@index([matchId])
+}
