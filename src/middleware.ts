@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth';
+import { validateEnv } from '@/lib/env';
+
+// Validate environment variables on middleware load
+try {
+  validateEnv();
+} catch (error) {
+  console.error('Environment validation failed:', error);
+  // In production, this will prevent the app from starting
+  if (process.env.NODE_ENV === 'production') {
+    throw error;
+  }
+}
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;

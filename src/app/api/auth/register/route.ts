@@ -2,10 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, generateToken } from '@/lib/auth';
 import { registerSchema } from '@/lib/validation';
+import { authRateLimiter } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Rate limiting by IP address
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `register:${clientIp}`;
+    if (!authRateLimiter.isAllowed(rateLimitKey)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de registro. Tente novamente em 15 minutos.' },
+        { status: 429 }
+      );
+    }
 
     // Validate input
     const { error, value } = registerSchema.validate(body);
