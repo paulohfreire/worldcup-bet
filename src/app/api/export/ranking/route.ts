@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       user.predictions.forEach(prediction => {
         const match = prediction.match;
 
-        if (match.homeScore !== undefined && match.awayScore !== undefined) {
+        if (match.homeScore !== null && match.awayScore !== null) {
           if (prediction.homeScore === match.homeScore && prediction.awayScore === match.awayScore) {
             totalPoints += 3;
             exactPredictions++;
