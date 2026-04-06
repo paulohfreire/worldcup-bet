@@ -1,6 +1,16 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-change-in-production';
+let JWT_SECRET: string;
+
+if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+  }
+  console.warn('WARNING: JWT_SECRET not set, using development fallback. DO NOT use in production!');
+  JWT_SECRET = 'dev-fallback-secret-key-change-me';
+} else {
+  JWT_SECRET = process.env.JWT_SECRET;
+}
 
 export interface JWTPayload {
   userId: string;
