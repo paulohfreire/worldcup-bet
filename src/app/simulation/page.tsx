@@ -154,7 +154,7 @@ export default function SimulationPage() {
             </h3>
             <ul className="space-y-2 text-yellow-800">
               <li>• A simulação é baseada nos resultados reais dos jogos</li>
-              <li>• Jogos que ainda não acontecerão mostrarão "VS"</li>
+              <li>• Jogos que ainda não acontecerão mostrarão &quot;VS&quot;</li>
               <li>• O bracket é atualizado automaticamente conforme os jogos ocorrem</li>
               <li>• Use a página de Jogos para fazer suas apostas</li>
             </ul>

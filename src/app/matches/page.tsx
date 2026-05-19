@@ -86,6 +86,7 @@ function MatchCard({ match, myPrediction, submitting, onSubmit }: {
                 value={homePred}
                 onChange={(e) => setHomePred(parseInt(e.target.value) || 0)}
                 className="w-16 h-12 text-center border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-900"
+                suppressHydrationWarning
               />
             </div>
 
@@ -102,6 +103,7 @@ function MatchCard({ match, myPrediction, submitting, onSubmit }: {
                 value={awayPred}
                 onChange={(e) => setAwayPred(parseInt(e.target.value) || 0)}
                 className="w-16 h-12 text-center border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-900"
+                suppressHydrationWarning
               />
             </div>
 
@@ -138,16 +140,6 @@ export default function MatchesPage() {
   const [myPredictions, setMyPredictions] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
-
-  useState(0); // Dummy state para evitar erro de hooks
-
-  useState(0); // Dummy state para evitar erro de hooks
-
-  useState(0); // Dummy state para evitar erro de hooks
-
-  useState(0); // Dummy state para evitar erro de hooks
-
-  useState(0); // Dummy state para evitar erro de hooks
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,6 +214,38 @@ export default function MatchesPage() {
 
   const groupedMatches = groupMatches();
 
+  // Ordem fixa para os grupos
+  const groupOrder = ['Grupo A', 'Grupo B', 'Grupo C', 'Grupo D', 'Grupo E', 'Grupo F', 'Grupo G', 'Grupo H', 'Grupo I', 'Grupo J', 'Grupo K', 'Grupo L'];
+
+  // Ordem fixa para as fases eliminatórias
+  const knockoutOrder = ['Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Disputa de 3º Lugar', 'Final'];
+
+  // Ordenar os grupos
+  const sortedGroupKeys = Object.keys(groupedMatches).sort((a, b) => {
+    const aIndex = groupOrder.indexOf(a);
+    const bIndex = groupOrder.indexOf(b);
+
+    // Se ambos são grupos de fase de grupos, usar a ordem fixa
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+
+    // Se ambos são fases eliminatórias, usar a ordem fixa
+    const aKnockoutIndex = knockoutOrder.indexOf(a);
+    const bKnockoutIndex = knockoutOrder.indexOf(b);
+
+    if (aKnockoutIndex !== -1 && bKnockoutIndex !== -1) {
+      return aKnockoutIndex - bKnockoutIndex;
+    }
+
+    // Se um é grupo e outro é fase eliminatória, grupos vêm primeiro
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+
+    // Caso contrário, ordem alfabética
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -230,13 +254,13 @@ export default function MatchesPage() {
         <div className="px-4 sm:px-0">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">⚽ Jogos</h1>
 
-          {Object.entries(groupedMatches).map(([groupName, groupMatches]) => (
+          {sortedGroupKeys.map((groupName) => (
             <div key={groupName} className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
                 {groupName}
               </h2>
               <div className="space-y-4">
-                {groupMatches
+                {groupedMatches[groupName]
                   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                   .map((match) => (
                     <MatchCard
