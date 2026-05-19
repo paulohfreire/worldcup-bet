@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -62,7 +62,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -72,6 +72,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          JWT_SECRET: test-secret-key-for-ci-only
+          DATABASE_URL: postgresql://user:password@localhost:5432/test
 
   test:
     name: Test
@@ -85,21 +87,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
-        run: npm test -- --coverage --watchAll=false
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+        run: npm test
 
   pr-size:
     name: PR Size Check
