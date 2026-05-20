@@ -12,6 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "ts-node --transpile-only scripts/seed.ts",
+    "backup:production": "bash scripts/backup.sh production",
+    "backup:staging": "bash scripts/backup.sh staging",
     "board:create": "node scripts/create-issues-with-login.js",
     "board:create:manual": "node scripts/create-issues-fixed.js",
     "agent:info": "cat AGENTS.md",
