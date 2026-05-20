@@ -27,8 +27,17 @@ const nextConfig = {
       {
         key: 'Permissions-Policy',
         value: 'camera=(), microphone=(), geolocation=()'
+      },
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=31536000; includeSubDomains'
       }
     ];
+
+    // Content Security Policy
+    const cspHeader = process.env.NODE_ENV === 'production'
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://flagcdn.com; font-src 'self' data:; connect-src 'self' https://api.ipify.org; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';"
+      : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://flagcdn.com; font-src 'self' data:; connect-src 'self' https://api.ipify.org;";
 
     // Add CORS headers for API routes
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
@@ -39,6 +48,10 @@ const nextConfig = {
         headers: [
           ...securityHeaders,
           {
+            key: 'Content-Security-Policy',
+            value: cspHeader
+          },
+          {
             key: 'Access-Control-Allow-Origin',
             value: allowedOrigins.join(', ')
           },
@@ -48,7 +61,7 @@ const nextConfig = {
           },
           {
             key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization'
+            value: 'Content-Type, Authorization, X-CSRF-Token'
           },
           {
             key: 'Access-Control-Max-Age',
@@ -58,7 +71,13 @@ const nextConfig = {
       },
       {
         source: '/(.*)',
-        headers: securityHeaders
+        headers: [
+          ...securityHeaders,
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader
+          }
+        ]
       }
     ];
   }

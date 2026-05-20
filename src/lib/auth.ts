@@ -1,16 +1,33 @@
 import jwt from 'jsonwebtoken';
 
-let JWT_SECRET: string;
-
-if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+// Validação estrita de JWT_SECRET
+function validateJWT_SECRET(): string {
+  if (!process.env.JWT_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+    }
+    console.warn('WARNING: JWT_SECRET not set. Set a secure JWT_SECRET in your .env file. DO NOT use in production!');
+    // Gerar secret aleatório para desenvolvimento (evita o mesmo secret em todas as máquinas dev)
+    const crypto = require('crypto');
+    const randomSecret = crypto.randomBytes(32).toString('hex');
+    console.warn(`Generated development JWT_SECRET: ${randomSecret}`);
+    return randomSecret;
   }
-  console.warn('WARNING: JWT_SECRET not set, using development fallback. DO NOT use in production!');
-  JWT_SECRET = 'dev-fallback-secret-key-change-me';
-} else {
-  JWT_SECRET = process.env.JWT_SECRET;
+
+  const secret = process.env.JWT_SECRET;
+
+  // Verificar tamanho mínimo (32 caracteres = 256 bits)
+  if (secret.length < 32) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: JWT_SECRET must be at least 32 characters long for security');
+    }
+    console.warn('WARNING: JWT_SECRET is too short (< 32 characters). This is insecure. Consider using a stronger secret.');
+  }
+
+  return secret;
 }
+
+let JWT_SECRET: string = validateJWT_SECRET();
 
 export interface JWTPayload {
   userId: string;
