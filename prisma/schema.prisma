@@ -5,17 +5,28 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
+  // Connection pool configuration for production
+  // URL format: postgresql://user:password@host:port/database?connection_limit=10&pool_timeout=20
 }
 
-model User {
-  id          String       @id @default(uuid())
-  name        String
-  email       String       @unique
-  password    String
-  role        String       @default("user")
-  createdAt   DateTime     @default(now())
+// Connection pool settings (applied when configured in DATABASE_URL)
+// connection_limit: Number of connections in pool (default: 10)
+// pool_timeout: Timeout in seconds to get connection from pool (default: 2)
+// connect_timeout: Timeout in seconds to establish connection (default: 10)
 
-  predictions Prediction[]
+model User {
+  id                  String       @id @default(uuid())
+  name                String
+  email               String       @unique
+  password            String
+  role                String       @default("user")
+  createdAt           DateTime     @default(now())
+  failedLoginAttempts Int          @default(0)
+  lockedUntil         DateTime?
+  lastFailedLogin     DateTime?
+
+  predictions         Prediction[]
 }
 
 model Team {

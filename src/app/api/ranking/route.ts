@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // Verificar se há autenticação para mostrar predições do usuário atual
+    let currentUserId: string | null = null;
+    const token = request.cookies.get('token')?.value;
+
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload) {
+        currentUserId = payload.userId;
+      }
+    }
+
     const users = await prisma.user.findMany({
       include: {
         predictions: {
@@ -11,12 +23,16 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
 
     const ranking = users.map(user => {
       let totalPoints = 0;
       let exactPredictions = 0;
       let correctPredictions = 0;
+      const totalPredictions = user.predictions.length;
 
       user.predictions.forEach(prediction => {
         const match = prediction.match;
@@ -42,21 +58,27 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      // Anonimizar dados sensíveis para ranking público
+      // Se o usuário atual for o dono dos dados, mostrar email completo
+      const isCurrentUser = user.id === currentUserId;
+
       return {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          createdAt: user.createdAt,
-        },
+        id: user.id,
+        name: user.name,
+        email: isCurrentUser ? user.email : null, // Só mostra email para o próprio usuário
         totalPoints,
         exactPredictions,
         correctPredictions,
+        totalPredictions,
+        accuracy: totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 0,
       };
     }).sort((a, b) => b.totalPoints - a.totalPoints);
 
-    return NextResponse.json(ranking);
+    return NextResponse.json({
+      ranking,
+      isCurrentUserAuthenticated: !!currentUserId,
+      currentUserRank: currentUserId ? ranking.findIndex(u => u.id === currentUserId) : -1,
+    });
   } catch (error) {
     console.error('Ranking error:', error);
     return NextResponse.json({ error: 'Erro ao buscar ranking' }, { status: 500 });
